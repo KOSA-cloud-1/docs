@@ -62,7 +62,7 @@ Repository는 다음 영역으로 구성된다.
 | --- | --- |
 | Proxmox | VM 기반 가상화 인프라 |
 | Kubernetes | Application Pod 실행 및 서비스 오케스트레이션 |
-| Ceph | Kubernetes Persistent Volume을 위한 분산 스토리지 |
+| Ceph | Kubernetes Persistent Volume 및 서비스 이미지 파일 저장소를 위한 분산 스토리지 |
 | Proxmox 상의 pfSense VM | VLAN Gateway, 방화벽, AWS Site-to-Site VPN 종단 |
 | MariaDB Galera Cluster | 고가용성 데이터베이스 |
 | Kubernetes Ingress Controller | On-Premise 내부 서비스 라우팅 |
@@ -83,6 +83,39 @@ Repository는 다음 영역으로 구성된다.
 | GitHub Actions | Container Image Build 및 배포 자동화 트리거 |
 | Container Registry | 빌드된 Container Image 저장 |
 | ArgoCD | GitOps 기반 Kubernetes 배포 동기화 |
+
+## 인프라 리소스 요약
+
+### Proxmox 물리 리소스
+
+| 항목 | 값 |
+| --- | --- |
+| Proxmox Node 수 | 4대 |
+| Node당 CPU | 24 core |
+| Node당 RAM | 32GB |
+| 전체 CPU | 96 core |
+| 전체 RAM | 128GB |
+
+### Kubernetes VM 리소스
+
+| 구분 | 노드 수 | vCPU 합계 | Memory 합계 | Disk 합계 |
+| --- | ---: | ---: | ---: | ---: |
+| Control Plane | 3 | 8 vCPU | 12GB | 60GB |
+| Worker | 6 | 24 vCPU | 12GB | 120GB |
+| Total | 9 | 32 vCPU | 24GB | 180GB |
+
+각 Kubernetes VM의 Disk는 20GB이며, VM별 상세 배치는 [Kubernetes Node Spec](./kubernetes-node-spec.md)에 정리한다.
+
+### Ceph Storage
+
+| 항목 | 값 |
+| --- | --- |
+| 팀 사용 가능 Ceph Storage | 약 3.7TB |
+| Ceph RBD Node | 10.10.10.11 |
+| Kubernetes PV 연동 방식 | RBD |
+| Object Storage | Ceph S3 |
+| 서비스 이미지 파일 저장소 | Ceph S3 |
+| Pool 구성 | 알 수 없음 |
 
 ## 네트워크 구조 요약
 
@@ -155,16 +188,20 @@ Application Pod
 
 ## 스토리지 구조
 
-Ceph는 Kubernetes Persistent Volume의 기반 스토리지로 사용한다.
+Ceph는 Kubernetes Persistent Volume과 서비스 이미지 파일 저장소의 기반 스토리지로 사용한다.
 
 | 항목 | 내용 |
 | --- | --- |
-| Storage Backend | Ceph |
-| Kubernetes 연동 | Persistent Volume |
+| Storage Backend | Ceph RBD, Ceph S3 |
+| 팀 사용 가능 용량 | 약 3.7TB |
+| Ceph RBD Node | 10.10.10.11 |
+| Kubernetes PV 연동 | Ceph RBD |
+| 서비스 이미지 파일 저장소 | Ceph S3 |
 | Storage Traffic | 10.10.10.0/24 Proxmox Cluster / Ceph Network |
-| 주요 용도 | Application 상태 데이터, DB Persistent Storage |
+| 주요 용도 | Application 상태 데이터, DB Persistent Storage, 서비스 이미지 파일 저장 |
 
-Ceph OSD 복제와 Storage Traffic은 Management Network 및 VLAN 기반 Service Network와 분리된 10G 전용 네트워크를 사용한다.
+Kubernetes는 Ceph RBD를 통해 Persistent Volume을 사용하고, 서비스에서 사용하는 이미지 파일은 같은 Ceph Storage의 Ceph S3에 저장한다. Container Image는 Container Registry에 저장하므로 Ceph S3의 서비스 이미지 파일 저장소와 구분한다.
+
 
 ## 데이터베이스 구조
 
@@ -174,7 +211,8 @@ Ceph OSD 복제와 Storage Traffic은 Management Network 및 VLAN 기반 Service
 | --- | --- |
 | DB | MariaDB Galera Cluster |
 | 고가용성 방식 | Galera Cluster |
-| Persistent Storage | Ceph 기반 Kubernetes Persistent Volume |
+| Persistent Storage | Ceph RBD 기반 Kubernetes Persistent Volume |
+| 서비스 이미지 파일 저장소 | Ceph S3 |
 | 배치 위치 | VLAN40 Private Network |
 
 세부 노드 수, DB endpoint, 백업 정책은 TBD이다.
@@ -243,4 +281,6 @@ Management Network, VLAN 기반 Service Network, Proxmox Cluster / Ceph Network�
 
 - [Network Design](./network-design.md)
 - [Hybrid Architecture](./hybrid-architecture.md)
+- [Ceph Storage Architecture](./ceph-architecture.md)
+- [Kubernetes Node Spec](./kubernetes-node-spec.md)
 - [Docs README](../README.md)
