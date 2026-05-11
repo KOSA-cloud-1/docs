@@ -54,7 +54,7 @@ On-Premise 영역은 기본 워크로드 실행, 데이터 저장, 데이터베�
 | Proxmox | VM 기반 인프라 제공 |
 | Kubernetes | Application Pod 실행 |
 | Kubernetes Ingress Controller | VLAN40 Private Network 내부 서비스 라우팅 |
-| Ceph | Kubernetes Persistent Volume 제공 |
+| Ceph | Kubernetes Persistent Volume 및 서비스 이미지 파일 저장소 제공 |
 | MariaDB Galera Cluster | 고가용성 DB 구성 |
 | Proxmox 상의 pfSense VM | VLAN Gateway, 방화벽, AWS Site-to-Site VPN 종단 |
 
@@ -65,6 +65,21 @@ On-Premise 영역은 기본 워크로드 실행, 데이터 저장, 데이터베�
 | Proxmox Cluster / Ceph Network | 10.10.10.0/24 | Proxmox Cluster 및 Ceph 통신 |
 
 pfSense는 물리 장비가 아니라 Proxmox 위에서 동작하는 VM이다. pfSense VM은 WAN을 Management Network에 연결하고, LAN/VLAN 인터페이스를 Proxmox VLAN Trunk Bridge에 연결한다.
+
+### On-Premise 리소스 요약
+
+| 항목 | 값 |
+| --- | --- |
+| Proxmox Node 수 | 4대 |
+| Node당 CPU | 24 core |
+| Node당 RAM | 32GB |
+| 전체 물리 CPU | 96 core |
+| 전체 물리 RAM | 128GB |
+| Kubernetes VM | Control Plane 3대, Worker 6대 |
+| Kubernetes VM 할당량 | 32 vCPU, 24GB RAM, 180GB Disk |
+| 팀 사용 가능 Ceph Storage | 약 3.7TB |
+| Ceph RBD Node | 10.10.10.11 |
+| 서비스 이미지 파일 저장소 | Ceph S3 |
 
 ## AWS 영역
 
@@ -190,7 +205,7 @@ pfSense VM은 AWS Site-to-Site VPN 종단으로 동작하며, VPN으로 들어�
 | 영역 | 기본 위치 | 비고 |
 | --- | --- | --- |
 | Application | On-Premise Kubernetes | 기본 워크로드 처리 |
-| Storage | On-Premise Ceph | Kubernetes Persistent Volume |
+| Storage | On-Premise Ceph RBD / Ceph S3 | 약 3.7TB, Kubernetes Persistent Volume 및 서비스 이미지 파일 저장소 |
 | Database | On-Premise MariaDB Galera Cluster | 고가용성 DB |
 | Network Gateway | Proxmox 상의 pfSense VM | VLAN 라우팅, 방화벽, VPN 종단 |
 | 확장 실행 환경 | AWS EKS | 필요 시 사용 |
@@ -229,10 +244,12 @@ Hybrid Architecture는 On-Premise의 고정 인프라를 최대한 활용하면�
 
 외부 요청은 AWS ALB로 단일화하고, AWS EC2 HAProxy와 Site-to-Site VPN을 통해 On-Premise VLAN40 Private Network의 Kubernetes Ingress Controller까지 전달한다. 이를 통해 On-Premise 내부 서비스는 Private Network 중심으로 유지된다.
 
-스토리지는 Ceph, 데이터베이스는 MariaDB Galera Cluster, 애플리케이션 실행은 Kubernetes를 사용하여 각 계층에서 고가용성 전략을 확보한다.
+스토리지는 Ceph RBD와 Ceph S3, 데이터베이스는 MariaDB Galera Cluster, 애플리케이션 실행은 Kubernetes를 사용하여 각 계층에서 고가용성 전략을 확보한다.
 
 ## 관련 문서
 
 - [Architecture Overview](./overview.md)
 - [Network Design](./network-design.md)
+- [Ceph Storage Architecture](./ceph-architecture.md)
+- [Kubernetes Node Spec](./kubernetes-node-spec.md)
 - [Docs README](../README.md)
