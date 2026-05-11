@@ -1,81 +1,20 @@
-# Hybrid Infrastructure Architecture Overview
+# 하이브리드 인프라 전체 아키텍처
 
-## 1. 목적
+## 목적
 
-본 문서는 On-Premise 환경과 AWS Cloud를 결합한 Hybrid Infrastructure의 전체 아키텍처를 정의한다.
+본 문서는 On-Premise와 AWS를 연결한 Hybrid Infrastructure의 전체 구조와 주요 설계 방향을 정의한다.
 
-본 프로젝트의 목표는 다음과 같다.
+프로젝트의 주요 목표는 다음과 같다.
 
-* Cost Optimization: 기본 워크로드는 On-Premise에서 처리하여 Cloud 비용 최소화
-* Performance Scalability: 필요 시 AWS 환경을 활용한 확장
-* High Availability: 장애 대응 가능한 구조 설계
+| 목표 | 설명 |
+| --- | --- |
+| Cost Optimization | 기본 워크로드를 On-Premise에서 처리하여 Cloud 비용을 최소화한다. |
+| Performance Scalability | 필요 시 AWS EKS를 활용하여 확장한다. |
+| High Availability | Kubernetes, Ceph, MariaDB Galera 기반으로 장애 대응 구조를 구성한다. |
 
----
+## 전체 구성 개요
 
-## 2. 전체 구성 개요
-
-본 시스템은 On-Premise와 AWS를 Site-to-Site VPN으로 연결한 Hybrid Infrastructure로 구성된다.
-
-* On-Premise: 실제 서비스 실행 환경
-* AWS: 외부 진입 지점 및 트래픽 제어 계층
-* Kubernetes: 컨테이너 오케스트레이션
-* Ceph: 분산 스토리지
-* GitOps: ArgoCD 기반 배포
-
-AWS는 외부 트래픽의 진입 지점 역할을 수행하며,
-On-Premise 리소스가 포화 상태에 도달할 경우 확장 환경(EKS)으로 활용된다.
-
----
-
-## 3. 주요 구성 요소
-
-### 3.1 On-Premise
-
-| 구성 요소                | 역할                         |
-| -------------------- | -------------------------- |
-| Proxmox Cluster | VM 기반 가상화 인프라 및 10G Cluster Network 구성 |
-| Ceph Storage | 10G 전용망 기반 분산 스토리지 및 Persistent Volume 제공 |
-| Kubernetes Cluster   | Application 실행             |
-| pfSense              | VLAN 라우팅, 방화벽, VPN Gateway |
-| MariaDB Galera       | 고가용성 DB                    |
-| Prometheus / Grafana | 모니터링                       |
-
----
-
-### 3.2 AWS Cloud
-
-| 구성 요소            | 역할                      |
-| ---------------- | ----------------------- |
-| ALB              | 외부 트래픽 수신 및 Entry Point |
-| EC2 (HAProxy)    | 트래픽 제어 및 On-Prem 전달     |
-| Site-to-Site VPN | On-Premise 연결           |
-| EKS (선택)         | 확장 환경                   |
-
-AWS ALB는 외부 트래픽 진입 지점으로 동작하며, 필요 시 TLS termination을 수행한다.
-
----
-
-## 4. 네트워크 구조 요약
-
-On-Premise는 VLAN 기반으로 네트워크를 분리한다.
-
-| VLAN   | 용도          | 대역              |
-| ------ | ----------- | --------------- |
-| VLAN10 | Public      | 172.17.0.0/24   |
-| VLAN20 | DMZ         | 172.17.32.0/24  |
-| VLAN30 | Development | 172.17.64.0/24  |
-| VLAN40 | Private     | 172.17.128.0/22 |
-
-* pfSense는 모든 VLAN의 Gateway 역할을 수행한다.
-* AWS와 On-Premise는 VPN으로 연결된다.
-* 추가로 Proxmox Cluster와 Ceph Storage 통신을 위해 10G 전용 네트워크(10.10.10.0/24)를 사용한다.
-해당 네트워크는 서비스 트래픽과 분리하여 스토리지 복제 및 클러스터 통신 안정성을 확보한다.
-
-Kubernetes Cluster는 Private Network(VLAN40)에 배치된다.
-
----
-
-## 5. 트래픽 흐름
+본 프로젝트는 On-Premise 인프라를 기본 실행 환경으로 사용하고, AWS를 외부 진입 지점 및 선택적 확장 환경으로 사용하는 Hybrid Infrastructure이다.
 
 ```text
 Client
@@ -90,7 +29,97 @@ EC2 (HAProxy)
 Site-to-Site VPN
   |
   v
-pfSense
+Proxmox 상의 pfSense VM
+  |
+  v
+VLAN40 Private Network
+  |
+  v
+Kubernetes Ingress Controller
+  |
+  v
+Kubernetes Service
+  |
+  v
+Application Pod
+```
+
+Repository는 다음 영역으로 구성된다.
+
+| 디렉토리 | 역할 |
+| --- | --- |
+| `app` | 애플리케이션 소스 코드 |
+| `docs` | 설계, 구축, 운영 문서 |
+| `k8s-manifest` | Kubernetes 배포 Manifest |
+| `infra-aws` | AWS 인프라 구성 코드 |
+| `infra-proxmox` | Proxmox 기반 On-Premise 인프라 구성 코드 |
+
+## 주요 구성 요소
+
+### On-Premise
+
+| 구성 요소 | 역할 |
+| --- | --- |
+| Proxmox | VM 기반 가상화 인프라 |
+| Kubernetes | Application Pod 실행 및 서비스 오케스트레이션 |
+| Ceph | Kubernetes Persistent Volume을 위한 분산 스토리지 |
+| Proxmox 상의 pfSense VM | VLAN Gateway, 방화벽, AWS Site-to-Site VPN 종단 |
+| MariaDB Galera Cluster | 고가용성 데이터베이스 |
+| Kubernetes Ingress Controller | On-Premise 내부 서비스 라우팅 |
+
+### AWS
+
+| 구성 요소 | 역할 |
+| --- | --- |
+| ALB | 외부 Client 요청 수신 지점 |
+| EC2 (HAProxy) | ALB 트래픽을 Site-to-Site VPN 경로로 전달 |
+| Site-to-Site VPN | AWS와 On-Premise 간 사설 연결 |
+| EKS | 필요 시 확장 가능한 선택적 Kubernetes 실행 환경 |
+
+### Deployment
+
+| 구성 요소 | 역할 |
+| --- | --- |
+| GitHub Actions | Container Image Build 및 배포 자동화 트리거 |
+| Container Registry | 빌드된 Container Image 저장 |
+| ArgoCD | GitOps 기반 Kubernetes 배포 동기화 |
+
+## 네트워크 구조 요약
+
+On-Premise 네트워크는 Management Network, VLAN 기반 Service Network, 10G Cluster / Ceph Network로 분리한다.
+
+| 네트워크 | 대역 | 용도 |
+| --- | --- | --- |
+| Management Network | 192.168.36.0/24 | Proxmox Management 및 pfSense VM WAN |
+| VLAN10 Public | 172.17.0.0/24 | Public Service Network |
+| VLAN20 DMZ | 172.17.32.0/24 | DMZ Service Network |
+| VLAN30 Development | 172.17.64.0/24 | Development Service Network |
+| VLAN40 Private | 172.17.128.0/22 | Kubernetes, DB, 내부 서비스 Network |
+| Proxmox Cluster / Ceph Network | 10.10.10.0/24 | Proxmox Cluster 통신 및 Ceph Storage Traffic |
+
+Proxmox 상의 pfSense VM은 WAN 인터페이스를 Management Network에 연결하고, LAN/VLAN 인터페이스를 Proxmox의 VLAN Trunk Bridge에 연결한다. pfSense VM은 VLAN10, VLAN20, VLAN30, VLAN40의 Gateway 역할을 수행한다.
+
+## 트래픽 흐름
+
+### 기본 서비스 트래픽
+
+```text
+Client
+  |
+  v
+AWS ALB
+  |
+  v
+EC2 (HAProxy)
+  |
+  v
+Site-to-Site VPN
+  |
+  v
+Proxmox 상의 pfSense VM
+  |
+  v
+VLAN40 (Private)
   |
   v
 Kubernetes Ingress Controller
@@ -104,48 +133,58 @@ Application Pod
 
 ### 흐름 설명
 
-1. Client는 AWS ALB로 요청을 전달한다.
-2. ALB는 EC2의 HAProxy로 트래픽을 전달한다.
-3. HAProxy는 VPN을 통해 On-Premise로 전달한다.
-4. pfSense는 VLAN 기반 내부 네트워크로 라우팅한다.
-5. 트래픽은 Private Network(VLAN40)를 통해 Kubernetes Ingress로 전달된다.
-6. Ingress Controller는 요청을 서비스로 라우팅한다.
-7. Application Pod에서 요청을 처리한다.
+1. 외부 Client는 AWS ALB로 접근한다.
+2. AWS ALB는 EC2에 구성된 HAProxy로 트래픽을 전달한다.
+3. EC2 HAProxy는 Site-to-Site VPN을 통해 On-Premise로 트래픽을 전달한다.
+4. On-Premise VPN 종단은 Proxmox 상의 pfSense VM이 담당한다.
+5. pfSense VM은 트래픽을 VLAN40 Private Network로 라우팅한다.
+6. Kubernetes Ingress Controller가 내부 서비스 라우팅을 수행한다.
+7. Kubernetes Service를 통해 Application Pod로 요청이 전달된다.
 
-확장 시 일부 트래픽은 AWS EKS로 분산될 수 있다.
+## 스케일링 전략
 
----
+기본 워크로드는 On-Premise Kubernetes Cluster에서 처리한다. On-Premise 리소스가 부족하거나 특정 서비스의 처리량 확장이 필요한 경우 AWS EKS를 선택적 확장 영역으로 활용한다.
 
-## 6. 스케일링 전략
+| 구분 | 기본 처리 위치 | 확장 위치 |
+| --- | --- | --- |
+| Application | On-Premise Kubernetes | AWS EKS |
+| Storage | On-Premise Ceph | TBD |
+| Database | On-Premise MariaDB Galera Cluster | TBD |
 
-* 기본: On-Premise Kubernetes에서 처리
-* 확장:
+확장 판단 기준의 상세 수치와 자동화 정책은 TBD이다.
 
-  * CPU / Memory 사용률 70~80% 이상 시
-  * AWS EKS로 워크로드 확장 또는 트래픽 분산
+## 스토리지 구조
 
----
+Ceph는 Kubernetes Persistent Volume의 기반 스토리지로 사용한다.
 
-## 7. 스토리지 구조
+| 항목 | 내용 |
+| --- | --- |
+| Storage Backend | Ceph |
+| Kubernetes 연동 | Persistent Volume |
+| Storage Traffic | 10.10.10.0/24 Proxmox Cluster / Ceph Network |
+| 주요 용도 | Application 상태 데이터, DB Persistent Storage |
 
-* Ceph 기반 분산 스토리지 사용
-* Kubernetes Persistent Volume으로 연동
+Ceph OSD 복제와 Storage Traffic은 Management Network 및 VLAN 기반 Service Network와 분리된 10G 전용 네트워크를 사용한다.
 
----
+## 데이터베이스 구조
 
-## 8. 데이터베이스 구조
+데이터베이스는 MariaDB Galera Cluster 기반으로 구성한다.
 
-MariaDB Galera Cluster 기반
+| 항목 | 내용 |
+| --- | --- |
+| DB | MariaDB Galera Cluster |
+| 고가용성 방식 | Galera Cluster |
+| Persistent Storage | Ceph 기반 Kubernetes Persistent Volume |
+| 배치 위치 | VLAN40 Private Network |
 
-* Multi-Master 구조
-* Ceph 기반 Persistent Storage 사용
+세부 노드 수, DB endpoint, 백업 정책은 TBD이다.
 
----
+## 배포 구조(GitOps)
 
-## 9. 배포 구조 (GitOps)
+배포는 GitHub Actions, Container Registry, ArgoCD를 조합한 GitOps 흐름을 따른다.
 
 ```text
-app Repository
+app
   |
   v
 GitHub Actions
@@ -154,7 +193,7 @@ GitHub Actions
 Container Registry
   |
   v
-k8s-manifest Repository
+k8s-manifest
   |
   v
 ArgoCD
@@ -163,45 +202,45 @@ ArgoCD
 Kubernetes Cluster
 ```
 
-Application Repository와 Manifest Repository를 분리하여 관리한다.
+| 단계 | 설명 |
+| --- | --- |
+| Build | GitHub Actions가 애플리케이션을 빌드한다. |
+| Push | 빌드된 이미지를 Container Registry에 저장한다. |
+| Manifest Update | Kubernetes Manifest 변경 사항을 관리한다. |
+| Sync | ArgoCD가 Git 상태를 기준으로 Kubernetes Cluster에 반영한다. |
 
-ArgoCD는 Repository 상태를 기준으로 클러스터를 지속적으로 동기화한다.
+## 모니터링
 
----
+모니터링 구성은 Prometheus와 Grafana를 기준으로 한다.
 
-## 10. 모니터링
+| 구성 요소 | 역할 |
+| --- | --- |
+| Prometheus | Metric 수집 |
+| Grafana | Dashboard 시각화 |
+| Alert 정책 | TBD |
+| Log 수집 | TBD |
 
-* Prometheus + Grafana 기반
+## 고가용성 전략
 
----
+| 영역 | 전략 |
+| --- | --- |
+| Application | Kubernetes Replica 및 Service 기반 장애 대응 |
+| Storage | Ceph 분산 스토리지 |
+| Database | MariaDB Galera Cluster |
+| Network | pfSense VM 기반 중앙 Gateway 및 방화벽 정책 |
+| Deployment | ArgoCD 기반 선언적 배포 상태 복구 |
+| Cloud 확장 | 필요 시 AWS EKS 활용 |
 
-## 11. 고가용성 전략
+## 설계 의도
 
-| 영역          | 방식                 |
-| ----------- | ------------------ |
-| Application | Kubernetes Replica |
-| Storage     | Ceph               |
-| Database    | MariaDB Galera     |
-| Network     | pfSense            |
-| Deployment  | ArgoCD             |
+본 아키텍처는 On-Premise를 기본 실행 환경으로 유지하여 Cloud 비용을 최소화하면서, AWS를 외부 진입 지점과 확장 환경으로 활용하기 위한 구조이다.
 
----
+On-Premise 내부 서비스 라우팅은 Kubernetes Ingress Controller 중심으로 구성한다. pfSense VM은 VLAN Gateway, 방화벽, VPN 종단을 담당하고, Kubernetes Ingress Controller는 Application Service 라우팅을 담당한다.
 
-## 12. 설계 의도
+Management Network, VLAN 기반 Service Network, Proxmox Cluster / Ceph Network를 분리하여 관리 트래픽, 서비스 트래픽, 스토리지 트래픽이 서로 영향을 주지 않도록 설계한다.
 
-* On-Premise 중심 비용 최적화
-* AWS 기반 확장 구조
-* Kubernetes 표준 운영
-* GitOps 기반 자동화
-* 장애 대응 가능 구조
+## 관련 문서
 
----
-
-## 13. 관련 문서
-
-* architecture/network-design.md
-* architecture/hybrid-architecture.md
-* architecture/aws-integration.md
-* runbooks/*
-* operations/*
-* decisions/*
+- [Network Design](./network-design.md)
+- [Hybrid Architecture](./hybrid-architecture.md)
+- [Docs README](../README.md)

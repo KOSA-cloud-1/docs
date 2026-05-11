@@ -1,12 +1,12 @@
-# Network Design
+# 네트워크 설계
 
-## 1. 목적
+## 목적
 
-본 문서는 On-Premise 환경의 네트워크 구조, VLAN 설계, 10G Cluster Network, pfSense 방화벽 정책을 정의한다.
+본 문서는 On-Premise Hybrid Infrastructure의 네트워크 구조, VLAN 설계, Proxmox 네트워크, pfSense VM 구성, 방화벽 정책, AWS Site-to-Site VPN 연결 구조를 정의한다.
 
----
+## 전체 네트워크 구조
 
-## 2. 전체 네트워크 구조
+On-Premise 네트워크는 Router, Managed Switch, Unmanaged Switch, Proxmox Node, Proxmox 상의 pfSense VM, VLAN 기반 Service Network로 구성된다.
 
 ```text
 Internet
@@ -15,148 +15,159 @@ Internet
 Router (192.168.3.250)
   |
   v
-Managed Switch (L2)
+Managed Switch
   |-- Port 1: Trunk
   |-- Port 2: Trunk
   |-- Port 3: Trunk
-  |-- Port 4: Access VLAN30 (Development)
+  |-- Port 4: Access VLAN30 Development
   |-- Port 5: Trunk
   |
   v
 Unmanaged Switch
   |
   v
-Proxmox Cluster (Management: 192.168.36.x)
+Proxmox Node 1G NICs
   |
   v
-pfSense (WAN: 192.168.36.150)
-  |
-  v
-VLAN Network (172.17.x.x)
+Management Network (192.168.36.0/24)
 ```
 
----
+Service Network와 Cluster / Ceph Network는 다음과 같이 분리한다.
 
-## 3. 물리 네트워크 구성
+```text
+Proxmox Node
+  |-- 1G NIC  -> Management Network (192.168.36.0/24)
+  |-- 10G NIC -> Proxmox Cluster / Ceph Network (10.10.10.0/24)
+  |
+  v
+Proxmox 상의 pfSense VM
+  |-- WAN      -> Management Network (192.168.36.0/24)
+  |-- LAN/VLAN -> Proxmox VLAN Trunk Bridge
+                  |-- VLAN10 Public      (172.17.0.0/24)
+                  |-- VLAN20 DMZ         (172.17.32.0/24)
+                  |-- VLAN30 Development (172.17.64.0/24)
+                  |-- VLAN40 Private     (172.17.128.0/22)
+```
+
+## 물리 네트워크 구성
 
 ### Router
 
-* 외부 인터넷 연결
-* Router IP: 192.168.3.250
-* 내부 Management Network로 트래픽 전달
-
----
+| 항목 | 값 |
+| --- | --- |
+| Router IP | 192.168.3.250 |
+| 역할 | 외부 인터넷 연결 및 상위 라우팅 |
 
 ### Managed Switch
 
-관리형 스위치는 VLAN 및 트래픽 분리를 담당한다.
+Managed Switch는 VLAN Trunk 및 Access Port 구성을 담당한다.
 
-| 포트     | 모드     | 용도                    |
-| ------ | ------ | --------------------- |
-| Port 1 | Trunk  | VLAN 트래픽 전달           |
-| Port 2 | Trunk  | VLAN 트래픽 전달           |
-| Port 3 | Trunk  | VLAN 트래픽 전달           |
-| Port 4 | Access | VLAN30 Development 전용 |
-| Port 5 | Trunk  | VLAN 트래픽 전달           |
-
-특징:
-
-* pfSense 및 VLAN 네트워크 트래픽 처리
-* Trunk 포트를 통해 VLAN10~40 전달
-
----
+| 포트 | 모드 | 용도 |
+| --- | --- | --- |
+| Port 1 | Trunk | VLAN 트래픽 전달 |
+| Port 2 | Trunk | VLAN 트래픽 전달 |
+| Port 3 | Trunk | VLAN 트래픽 전달 |
+| Port 4 | Access | VLAN30 Development |
+| Port 5 | Trunk | VLAN 트래픽 전달 |
 
 ### Unmanaged Switch
 
-비관리형 스위치는 Proxmox 관리망 연결 용도로 사용한다.
+Unmanaged Switch는 VLAN 기능 없이 Management Network 전용으로 사용한다.
 
-* VLAN 기능 없음
-* Proxmox 1G NIC 연결
-* Management Network 전용
+| 항목 | 내용 |
+| --- | --- |
+| VLAN 기능 | 없음 |
+| 연결 대상 | Proxmox Node들의 1G NIC |
+| 사용 네트워크 | Management Network |
+| 대역 | 192.168.36.0/24 |
 
----
+## Managed Switch / Unmanaged Switch 역할
 
-## 4. Proxmox 네트워크
+| 구분 | 역할 |
+| --- | --- |
+| Managed Switch | VLAN Trunk, VLAN30 Access Port, VLAN 기반 Service Network 전달 |
+| Unmanaged Switch | Proxmox Node 1G NIC Management Network 연결 |
 
-| 항목                     | 내용                              |
-| ---------------------- | ------------------------------- |
-| Management Network     | 192.168.36.0/24                 |
-| Management IP          | 192.168.36.151 ~ 192.168.36.154 |
-| Cluster / Ceph Network | 10.10.10.0/24                   |
-| Cluster IP             | 10.10.10.31 ~ 10.10.10.34       |
-| 역할                     | VM 실행, Kubernetes Node, Ceph 연동 |
+Managed Switch는 VLAN 기반 Service Network를 전달하고, Unmanaged Switch는 Proxmox Management Network 연결만 담당한다.
 
-Proxmox Node는 NIC 2개를 사용한다.
+## Proxmox 네트워크
 
-* 1G NIC → Management Network
-* 10G NIC → Ceph / Cluster Network
+Proxmox Node는 1G NIC와 10G NIC를 분리하여 사용한다.
 
----
+| 항목 | 값 |
+| --- | --- |
+| 1G NIC 용도 | Management Network |
+| 10G NIC 용도 | Proxmox Cluster / Ceph Network |
+| Management Network | 192.168.36.0/24 |
+| Proxmox Management IP | 192.168.36.151 ~ 192.168.36.154 |
+| pfSense VM WAN | 192.168.36.150 |
+| Proxmox Cluster / Ceph Network | 10.10.10.0/24 |
+| Proxmox Cluster / Ceph IP | 10.10.10.31 ~ 10.10.10.34 |
 
-## 5. pfSense 구성
+192.168.36.x 대역은 Proxmox Management 및 pfSense VM WAN 연결 용도로만 설명한다. Kubernetes Service Network나 Ceph Traffic 용도로 사용하지 않는다.
 
-| 인터페이스 | IP             | 역할                             |
-| ----- | -------------- | ------------------------------ |
-| WAN   | 192.168.36.150 | Router 및 Management Network 연결 |
-| LAN   | 172.16.1.1     | 내부 Gateway                     |
-| OPT1  | VLAN10         | Public Gateway                 |
-| OPT2  | VLAN20         | DMZ Gateway                    |
-| OPT3  | VLAN30         | Development Gateway            |
-| OPT4  | VLAN40         | Private Gateway                |
+## pfSense 구성
 
-pfSense는 다음 역할을 수행한다.
+pfSense는 물리 장비가 아니라 Proxmox Node 위에서 동작하는 VM이다.
 
-* VLAN 간 라우팅
-* 방화벽 정책 적용
-* AWS와의 Site-to-Site VPN 종단
-* On-Premise 네트워크의 중앙 Gateway
+pfSense VM은 WAN 인터페이스를 Management Network에 연결하고, LAN/VLAN 인터페이스를 Proxmox의 VLAN Trunk Bridge에 연결한다. pfSense VM은 VLAN10, VLAN20, VLAN30, VLAN40의 Gateway 역할을 수행한다.
 
----
+| 인터페이스 | 값 | 역할 |
+| --- | --- | --- |
+| WAN | 192.168.36.150 | Management Network 연결 |
+| LAN | 172.16.1.1 | 내부 LAN Gateway |
+| OPT1 | VLAN10 Public Gateway | VLAN10 Gateway |
+| OPT2 | VLAN20 DMZ Gateway | VLAN20 Gateway |
+| OPT3 | VLAN30 Development Gateway | VLAN30 Gateway |
+| OPT4 | VLAN40 Private Gateway | VLAN40 Gateway |
 
-## 6. VLAN 구성
+pfSense VM의 주요 역할은 다음과 같다.
 
-| VLAN   | 용도          | 대역              | 설명                     |
-| ------ | ----------- | --------------- | ---------------------- |
-| VLAN10 | Public      | 172.17.0.0/24   | 외부 공개 가능 영역            |
-| VLAN20 | DMZ         | 172.17.32.0/24  | 외부 접근 서비스 영역           |
-| VLAN30 | Development | 172.17.64.0/24  | 개발 및 테스트 환경            |
-| VLAN40 | Private     | 172.17.128.0/22 | Kubernetes, DB, 내부 서비스 |
+- VLAN 간 라우팅
+- 방화벽 정책 적용
+- AWS Site-to-Site VPN 종단
+- On-Premise 네트워크 중앙 Gateway
 
----
+## VLAN 구성
 
-## 7. 10G Cluster / Ceph Network
+172.17.x.x 대역은 VLAN 기반 Service Network로 사용한다.
 
-Proxmox Cluster와 Ceph Storage는 별도의 10G 전용 네트워크를 사용한다.
+| VLAN | 이름 | 대역 | 용도 |
+| --- | --- | --- | --- |
+| VLAN10 | Public | 172.17.0.0/24 | Public Service Network |
+| VLAN20 | DMZ | 172.17.32.0/24 | DMZ Service Network |
+| VLAN30 | Development | 172.17.64.0/24 | 개발 및 테스트 Service Network |
+| VLAN40 | Private | 172.17.128.0/22 | Kubernetes, DB, 내부 서비스 Network |
 
-| 항목      | 내용                                          |
-| ------- | ------------------------------------------- |
-| Network | 10.10.10.0/24                               |
-| Node IP | 10.10.10.31 ~ 10.10.10.34                   |
-| 용도      | Proxmox Cluster / Ceph 통신                   |
-| 속도      | 10GbE                                       |
-| 구조      | Spine-Leaf                                  |
-| 역할      | Ceph OSD 복제, Cluster 통신, Storage Traffic 분리 |
+Kubernetes Ingress Controller는 VLAN40 Private Network에서 내부 서비스 라우팅의 중심 역할을 수행한다.
 
-특징:
+## 10G Cluster / Ceph Network
 
-* 서비스 네트워크와 완전히 분리
-* Ceph 복제 트래픽 고부하 처리
-* Proxmox Cluster 안정성 확보
+10.10.10.x 대역은 Proxmox Cluster / Ceph Network로만 사용한다.
 
----
+| 항목 | 값 |
+| --- | --- |
+| Network | 10.10.10.0/24 |
+| Node IP | 10.10.10.31 ~ 10.10.10.34 |
+| 용도 | Proxmox Cluster / Ceph 통신 |
+| 구조 | Spine-Leaf 기반 |
+| 역할 | Ceph OSD 복제, Cluster 통신, Storage Traffic 분리 |
 
-## 8. Kubernetes 네트워크
+10G Cluster / Ceph Network는 Management Network, Kubernetes Service Network, VLAN Network와 분리한다. 이 네트워크는 Ceph 복제와 Proxmox Cluster 통신에 집중되며, Application Service Traffic 경로로 사용하지 않는다.
 
-* Kubernetes Node는 VLAN40 (Private)에 배치
-* 외부 접근은 Ingress Controller를 통해 수행
-* Pod Network는 CNI 기반 구성
-* 상태 저장 서비스는 Ceph PVC 사용
+## Kubernetes 네트워크
 
----
+| 항목 | 값 |
+| --- | --- |
+| Kubernetes 배치 네트워크 | VLAN40 Private Network |
+| Service 진입점 | Kubernetes Ingress Controller |
+| Kubernetes Service Network 세부 대역 | TBD |
+| Pod Network 세부 대역 | TBD |
+| Persistent Volume | Ceph 기반 PV |
 
-## 9. 트래픽 흐름
+외부에서 들어온 서비스 트래픽은 AWS ALB, EC2 HAProxy, Site-to-Site VPN, pfSense VM을 거쳐 VLAN40의 Kubernetes Ingress Controller로 전달된다.
 
-### 전체 흐름
+## 트래픽 흐름
 
 ```text
 Client
@@ -171,79 +182,82 @@ EC2 (HAProxy)
 Site-to-Site VPN
   |
   v
-pfSense
+Proxmox 상의 pfSense VM
   |
   v
 VLAN40 (Private)
   |
   v
-Kubernetes Ingress
+Kubernetes Ingress Controller
   |
   v
-Service
+Kubernetes Service
   |
   v
-Pod
+Application Pod
 ```
 
----
+트래픽은 외부 진입 지점인 AWS ALB에서 시작하여 AWS EC2 HAProxy를 거친 뒤, Site-to-Site VPN을 통해 On-Premise로 들어온다. On-Premise VPN 종단은 pfSense VM이 담당하며, pfSense VM 이후 트래픽은 VLAN40 Private Network의 Kubernetes Ingress Controller로 전달된다.
 
-## 10. Firewall Policy
+## Firewall Policy
 
-### 정책 원칙
+pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책을 허용 정책보다 위에 배치한다.
 
-* 차단 정책을 허용 정책보다 상단 배치
-* VLAN 간 접근 최소화
-* 최소 권한 원칙 적용
+### VLAN20 DMZ
 
----
+| 순서 | 정책 | Action |
+| --- | --- | --- |
+| 1 | DMZ -> Private | 차단 |
+| 2 | DMZ -> Dev | 차단 |
+| 3 | DMZ -> Internet | 허용 |
 
-### VLAN20 (DMZ)
+### VLAN30 Development
 
-* DMZ → Private 차단
-* DMZ → Dev 차단
-* DMZ → Internet 허용
+| 순서 | 정책 | Action |
+| --- | --- | --- |
+| 1 | Dev -> Private | 차단 |
+| 2 | Dev -> DMZ | 차단 |
+| 3 | Dev -> Internet | 허용 |
 
----
+### VLAN40 Private
 
-### VLAN30 (Development)
+| 순서 | 정책 | Action |
+| --- | --- | --- |
+| 1 | Private -> Dev | 차단 |
+| 2 | Private -> DMZ | 차단 |
+| 3 | Private -> Internet | 허용 |
 
-* Dev → Private 차단
-* Dev → DMZ 차단
-* Dev → Internet 허용
+## VPN 구성
 
----
+| 항목 | 값 |
+| --- | --- |
+| VPN 방식 | AWS Site-to-Site VPN |
+| AWS 측 | AWS VPC |
+| On-Premise 측 종단 | Proxmox 상의 pfSense VM |
+| 주요 목적 | AWS와 On-Premise 간 사설 통신 |
+| 상세 Tunnel 설정 | TBD |
 
-### VLAN40 (Private)
+Site-to-Site VPN은 AWS EC2 HAProxy에서 On-Premise VLAN40 Private Network의 Kubernetes Ingress Controller로 트래픽을 전달하기 위한 사설 연결 경로이다.
 
-* Private → Dev 차단
-* Private → DMZ 차단
-* Private → Internet 허용
+## 보안 설계 원칙
 
----
+- 외부 Client의 직접 진입 지점은 AWS ALB로 제한한다.
+- AWS와 On-Premise 간 통신은 Site-to-Site VPN을 사용한다.
+- pfSense VM에서 VLAN 간 라우팅과 방화벽 정책을 중앙 관리한다.
+- DMZ, Development, Private Network 간 접근은 필요한 방향만 허용한다.
+- Kubernetes 내부 서비스 접근은 VLAN40 Private Network와 Ingress Controller 중심으로 제한한다.
+- Management Network, Service Network, Proxmox Cluster / Ceph Network를 분리한다.
 
-## 11. VPN 구성
+## 설계 의도
 
-* AWS VPC ↔ pfSense IPSec VPN
-* AWS ALB → HAProxy → VPN → On-Prem 전달
-* VPN 트래픽은 Kubernetes Ingress로 전달
+본 네트워크 설계는 관리 트래픽, 서비스 트래픽, 스토리지 트래픽을 분리하여 장애 영향 범위를 줄이고 운영 안정성을 확보하기 위한 구조이다.
 
----
+Proxmox 상의 pfSense VM은 VLAN Gateway, 방화벽, AWS Site-to-Site VPN 종단을 담당한다. Kubernetes 서비스 라우팅은 VLAN40 Private Network의 Kubernetes Ingress Controller를 중심으로 구성한다.
 
-## 12. 보안 설계 원칙
+Ceph와 Proxmox Cluster 통신은 10G 전용 네트워크에서 처리하여 Storage Traffic이 Management Network나 Service Network에 영향을 주지 않도록 한다.
 
-* VLAN 기반 네트워크 분리
-* Private Network 외부 직접 접근 차단
-* DMZ / Dev → Private 접근 차단
-* pfSense 중심 접근 통제
-* 최소 권한 정책 적용
+## 관련 문서
 
----
-
-## 13. 설계 의도
-
-* 네트워크 분리를 통한 보안 강화
-* 10G 전용망 기반 Storage 성능 확보
-* Proxmox / Ceph 안정성 확보
-* Hybrid Cloud 연결 구조 지원
-* 장애 발생 시 영향 최소화
+- [Architecture Overview](./overview.md)
+- [Hybrid Architecture](./hybrid-architecture.md)
+- [Docs README](../README.md)
