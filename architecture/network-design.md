@@ -94,6 +94,13 @@ Managed Switch는 VLAN 기반 Service Network를 전달하고, Unmanaged Switch�
 
 Proxmox Node는 1G NIC와 10G NIC를 분리하여 사용한다.
 
+| Proxmox Node | Management IP | CPU | RAM |
+| --- | --- | --- | --- |
+| team11 | 192.168.36.151 | 24 core | 32GB |
+| team12 | 192.168.36.152 | 24 core | 32GB |
+| team13 | 192.168.36.153 | 24 core | 32GB |
+| team14 | 192.168.36.154 | 24 core | 32GB |
+
 | 항목 | 값 |
 | --- | --- |
 | 1G NIC 용도 | Management Network |
@@ -148,22 +155,36 @@ Kubernetes Ingress Controller는 VLAN40 Private Network에서 내부 서비스 �
 | 항목 | 값 |
 | --- | --- |
 | Network | 10.10.10.0/24 |
-| Node IP | 10.10.10.31 ~ 10.10.10.34 |
+| Proxmox 10G Node IP | 10.10.10.31 ~ 10.10.10.34 |
+| Kubernetes VM 10G IP | 10.10.10.50 ~ 10.10.10.99 |
+| Ceph RBD Node | 10.10.10.11 |
+| Ceph S3 Endpoint | TBD |
 | 용도 | Proxmox Cluster / Ceph 통신 |
 | 구조 | Spine-Leaf 기반 |
 | 역할 | Ceph OSD 복제, Cluster 통신, Storage Traffic 분리 |
 
 10G Cluster / Ceph Network는 Management Network, Kubernetes Service Network, VLAN Network와 분리한다. 이 네트워크는 Ceph 복제와 Proxmox Cluster 통신에 집중되며, Application Service Traffic 경로로 사용하지 않는다.
 
+Kubernetes VM은 `vmbr1`에 Static IP `10.10.10.50 ~ 10.10.10.99`을 사용한다. 이 값은 Kubernetes Service CIDR 또는 Pod CIDR이 아니라 VM Node의 10G 내부망 IP이다.
+
 ## Kubernetes 네트워크
 
 | 항목 | 값 |
 | --- | --- |
+| Kubernetes VM 수 | 9대 |
+| Control Plane | 3대 |
+| Worker | 6대 |
+| Kubernetes VM vCPU 합계 | 32 vCPU |
+| Kubernetes VM Memory 합계 | 24GB |
+| Kubernetes VM Disk | VM당 20GB |
 | Kubernetes 배치 네트워크 | VLAN40 Private Network |
+| net0 | vmbr0, virtio, VLAN40, DHCP |
+| net1 | vmbr1, virtio, Static 10.10.10.x/24 |
 | Service 진입점 | Kubernetes Ingress Controller |
 | Kubernetes Service Network 세부 대역 | TBD |
 | Pod Network 세부 대역 | TBD |
-| Persistent Volume | Ceph 기반 PV |
+| Persistent Volume | Ceph RBD 기반 PV |
+| Object Storage | Ceph S3 기반 서비스 이미지 파일 저장소 |
 
 외부에서 들어온 서비스 트래픽은 AWS ALB, EC2 HAProxy, Site-to-Site VPN, pfSense VM을 거쳐 VLAN40의 Kubernetes Ingress Controller로 전달된다.
 
@@ -260,4 +281,6 @@ Ceph와 Proxmox Cluster 통신은 10G 전용 네트워크에서 처리하여 Sto
 
 - [Architecture Overview](./overview.md)
 - [Hybrid Architecture](./hybrid-architecture.md)
+- [Ceph Storage Architecture](./ceph-architecture.md)
+- [Kubernetes Node Spec](./kubernetes-node-spec.md)
 - [Docs README](../README.md)
