@@ -115,7 +115,6 @@ Repository는 다음 영역으로 구성된다.
 | Kubernetes PV 연동 방식 | RBD |
 | Object Storage | Ceph S3 |
 | 서비스 이미지 파일 저장소 | Ceph S3 |
-| Pool 구성 | 알 수 없음 |
 
 ## 네트워크 구조 요약
 
