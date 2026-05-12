@@ -103,7 +103,7 @@ pfSense VM은 VLAN 간 라우팅, 방화벽 정책, AWS Site-to-Site VPN 종단�
 | VLAN30 | Development | 172.17.64.0/24 | 개발 및 테스트 Service Network |
 | VLAN40 | Private | 172.17.128.0/22 | Kubernetes, DB, 내부 서비스 Network |
 
-Kubernetes Ingress Controller는 VLAN40 Private Network에서 내부 서비스 라우팅을 담당한다.
+Ingress는 VLAN40 Private Network에서 내부 서비스 라우팅을 담당한다.
 
 ## 10G Cluster / Ceph Network
 
@@ -127,7 +127,8 @@ Kubernetes Ingress Controller는 VLAN40 Private Network에서 내부 서비스 �
 | Kubernetes Service Network | 10.96.0.0/12 |
 | Kubernetes Pod Network | 10.244.0.0/16 |
 | MetalLB IP Pool | 172.17.131.200-172.17.131.250 |
-| Ingress VIP | 172.17.131.200 |
+| Ingress Endpoint | 172.17.131.200 |
+| On-Prem HAProxy Endpoint | TBD |
 
 ## AWS 네트워크
 
@@ -161,6 +162,9 @@ Proxmox 상의 pfSense VM
 VLAN40 Private Network
   |
   v
+On-Prem HAProxy
+  |
+  v
 Kubernetes Ingress Controller
 ```
 
@@ -172,7 +176,8 @@ pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책
 
 | 순서 | 정책 | Action |
 | --- | --- | --- |
-| 1 | EC2 HAProxy -> Ingress VIP(172.17.131.200) : 80/443 | 허용 |
+| 1 | AWS HAProxy -> On-Prem HAProxy : 80/443 | 허용 |
+| 2 | On-Prem HAProxy -> Ingress(172.17.131.200) : 80/443 | 허용 |
 
 ### VLAN10 Public(사용안함)
 
@@ -219,14 +224,14 @@ pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책
 | On-Premise 측 종단 | Proxmox 상의 pfSense VM |
 | 상세 Tunnel 설정 | TBD |
 
-Site-to-Site VPN은 AWS EC2 HAProxy에서 On-Premise VLAN40의 Kubernetes Ingress Controller로 트래픽을 전달하는 사설 경로이다.
+Site-to-Site VPN은 AWS HAProxy에서 On-Premise VLAN40으로 트래픽을 전달하는 사설 경로이다. VPN 이후 트래픽은 pfSense VM과 On-Prem HAProxy를 거쳐 Ingress로 전달된다.
 
 ## 보안 설계 원칙
 
 - 외부 Client의 직접 진입 지점은 AWS NLB로 제한한다.
 - AWS와 On-Premise 간 통신은 Site-to-Site VPN을 사용한다.
 - pfSense VM에서 VLAN 간 라우팅과 방화벽 정책을 중앙 관리한다.
-- Kubernetes 내부 서비스 접근은 VLAN40과 Ingress Controller 중심으로 제한한다.
+- Kubernetes 내부 서비스 접근은 VLAN40, On-Prem HAProxy, Ingress 중심으로 제한한다.
 - Management Network, VLAN Service Network, 10G Cluster / Ceph Network를 분리한다.
 
 ## 관련 문서

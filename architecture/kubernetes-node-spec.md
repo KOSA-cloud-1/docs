@@ -90,8 +90,9 @@ Proxmox는 총 4대로 구성한다.
 | Kubernetes Service CIDR | 10.96.0.0/12 |
 | Kubernetes Pod CIDR | 10.244.0.0/16 |
 | MetalLB IP Pool | 172.17.131.200-172.17.131.250 |
+| On-Prem HAProxy Endpoint | TBD |
 | Control Plane Endpoint | TBD |
-| Ingress Controller Endpoint | 172.17.131.200 |
+| Ingress Endpoint | 172.17.131.200 |
 
 ## Cloud-Init 설정
 
@@ -107,7 +108,7 @@ Cloud-Init은 VM 초기화와 QEMU Guest Agent 실행에 사용한다.
 
 Kubernetes Control Plane은 3대로 구성하여 기본적인 Control Plane 고가용성 구조를 확보한다. Worker Node는 6대로 구성하여 Application Pod를 분산 배치한다.
 
-Kubernetes VM의 10G Static IP는 내부 통신, Ceph RBD 접근, Ceph S3 접근을 위한 노드 IP로 사용한다. 외부 서비스 노출은 AWS NLB, EC2 HAProxy, Site-to-Site VPN, pfSense VM, Kubernetes Ingress Controller 경로를 따른다.
+Kubernetes VM의 10G Static IP는 내부 통신, Ceph RBD 접근, Ceph S3 접근을 위한 노드 IP로 사용한다. 외부 서비스 노출은 AWS NLB, EC2 HAProxy, Site-to-Site VPN, pfSense VM, On-Prem HAProxy, Kubernetes Ingress Controller 경로를 따른다.
 
 ## 관련 문서
 

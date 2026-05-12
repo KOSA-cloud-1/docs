@@ -34,6 +34,9 @@ Proxmox 상의 pfSense VM
 VLAN40 Private Network
   |
   v
+On-Prem HAProxy
+  |
+  v
 Kubernetes Ingress Controller
   |
   v
@@ -54,7 +57,7 @@ Hybrid 구조는 AWS를 외부 Entry Point로 사용하고, On-Premise를 기본
 | Site-to-Site VPN | AWS와 On-Premise 사설 연결 |
 | EKS | 필요 시 확장 실행 환경 |
 
-NLB는 외부 진입점을 단순화하고, 상세 라우팅은 EC2 HAProxy와 Kubernetes Ingress Controller가 담당한다.
+NLB는 외부 진입점을 단순화하고, AWS HAProxy는 On-Premise 또는 EKS 경로 분기를 담당한다.
 
 ## On-Premise 연계
 
@@ -62,6 +65,7 @@ NLB는 외부 진입점을 단순화하고, 상세 라우팅은 EC2 HAProxy와 K
 | --- | --- |
 | Proxmox 상의 pfSense VM | VPN 종단, VLAN Gateway, 방화벽 |
 | VLAN40 Private Network | Kubernetes, DB, 내부 서비스 배치 |
+| On-Prem HAProxy | VPN 유입 트래픽을 Ingress로 전달 |
 | Kubernetes Ingress Controller | On-Premise 내부 서비스 라우팅 |
 
 pfSense는 물리 장비가 아니라 Proxmox 위에서 동작하는 VM이다.
@@ -85,6 +89,9 @@ Proxmox 상의 pfSense VM
   |
   v
 VLAN40 Private Network
+  |
+  v
+On-Prem HAProxy
   |
   v
 Kubernetes Ingress Controller
@@ -142,7 +149,8 @@ VLAN40 Private Network
 | Application Pod 장애 | Kubernetes Replica 및 재시작 정책 |
 | Kubernetes Node 장애 | 다른 Node로 Pod 재배치 |
 | Site-to-Site VPN 장애 | AWS에서 On-Premise 서비스 접근 영향 |
-| AWS NLB 또는 EC2 HAProxy 장애 | 외부 진입 경로 영향 |
+| AWS NLB 또는 AWS HAProxy 장애 | 외부 진입 경로 영향 |
+| On-Prem HAProxy 장애 | On-Premise Kubernetes 진입 경로 영향 |
 | On-Premise 리소스 부족 | AWS EKS 확장 검토 |
 
 세부 Health Check 기준과 RTO/RPO는 TBD이다.
@@ -154,7 +162,7 @@ VLAN40 Private Network
 | 외부 접근 | AWS NLB로 진입 지점 제한 |
 | AWS-On-Premise 연결 | Site-to-Site VPN 기반 사설 통신 |
 | On-Premise Gateway | pfSense VM에서 라우팅 및 방화벽 적용 |
-| 내부 서비스 | VLAN40과 Kubernetes Ingress Controller 중심 접근 |
+| 내부 서비스 | On-Prem HAProxy, Ingress 중심 접근 |
 
 ## 관련 문서
 

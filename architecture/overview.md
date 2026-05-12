@@ -35,6 +35,9 @@ Proxmox 상의 pfSense VM
 VLAN40 Private Network
   |
   v
+On-Prem HAProxy
+  |
+  v
 Kubernetes Ingress Controller
   |
   v
@@ -62,6 +65,7 @@ Repository는 다음 영역으로 구성된다.
 | --- | --- |
 | Proxmox | VM 기반 가상화 인프라 |
 | Kubernetes | Application Pod 실행 및 서비스 오케스트레이션 |
+| On-Prem HAProxy | VPN 유입 트래픽을 Ingress로 전달 |
 | Kubernetes Ingress Controller | On-Premise 내부 서비스 라우팅 |
 | Ceph | RBD 기반 PV 및 S3 기반 서비스 이미지 파일 저장소 |
 | MariaDB Galera Cluster | 고가용성 데이터베이스 |
@@ -129,7 +133,7 @@ On-Premise 네트워크는 관리, 서비스, 스토리지 트래픽을 분리�
 | VLAN40 Private | 172.17.128.0/22 | Kubernetes, DB, 내부 서비스 Network |
 | Proxmox Cluster / Ceph Network | 10.10.10.0/24 | Proxmox Cluster 통신 및 Ceph Storage Traffic |
 
-서비스 트래픽은 AWS NLB와 EC2 HAProxy를 거쳐 Site-to-Site VPN으로 On-Premise에 전달된다. On-Premise 내부에서는 pfSense VM 이후 VLAN40 Private Network의 Kubernetes Ingress Controller가 서비스 라우팅을 담당한다.
+서비스 트래픽은 AWS NLB와 AWS HAProxy EC2를 거쳐 Site-to-Site VPN으로 On-Premise에 전달된다. On-Premise 내부에서는 pfSense VM 이후 On-Prem HAProxy가 Ingress로 트래픽을 전달하고, Ingress가 서비스 라우팅을 담당한다.
 
 ## 트래픽 흐름
 
@@ -142,7 +146,7 @@ Client
 AWS NLB
   |
   v
-EC2 (HAProxy)
+AWS HAProxy EC2 x2
   |
   v
 Site-to-Site VPN
@@ -154,7 +158,10 @@ Proxmox 상의 pfSense VM
 VLAN40 Private Network
   |
   v
-Kubernetes Ingress Controller
+On-Prem HAProxy
+  |
+  v
+Ingress
   |
   v
 Kubernetes Service
@@ -166,12 +173,13 @@ Application Pod
 ### 흐름 설명
 
 1. 외부 Client는 AWS NLB로 접근한다.
-2. NLB는 EC2에 구성된 HAProxy로 트래픽을 전달한다.
-3. EC2 HAProxy는 Site-to-Site VPN을 통해 On-Premise로 트래픽을 전달한다.
+2. NLB는 EC2 2대에 구성된 HAProxy로 트래픽을 전달한다.
+3. AWS HAProxy는 Site-to-Site VPN을 통해 On-Premise로 트래픽을 전달한다.
 4. On-Premise VPN 종단은 Proxmox 상의 pfSense VM이 담당한다.
 5. pfSense VM은 트래픽을 VLAN40 Private Network로 라우팅한다.
-6. Kubernetes Ingress Controller가 내부 서비스 라우팅을 수행한다.
-7. Kubernetes Service를 통해 Application Pod로 요청이 전달된다.
+6. On-Prem HAProxy는 트래픽을 Ingress로 전달한다.
+7. Ingress가 내부 서비스 라우팅을 수행한다.
+8. Kubernetes Service를 통해 Application Pod로 요청이 전달된다.
 
 ## 스케일링 전략
 
@@ -270,7 +278,7 @@ Kubernetes Cluster
 
 본 아키텍처는 On-Premise를 기본 실행 환경으로 유지하여 Cloud 비용을 최소화하면서, AWS를 외부 진입점과 확장 환경으로 활용하기 위한 구조이다.
 
-On-Premise 내부 서비스 라우팅은 Kubernetes Ingress Controller 중심으로 구성한다. pfSense VM은 VLAN Gateway, 방화벽, VPN 종단을 담당하고, Kubernetes Ingress Controller는 Application Service 라우팅을 담당한다.
+On-Premise 내부 서비스 라우팅은 Ingress 중심으로 구성한다. pfSense VM은 VLAN Gateway, 방화벽, VPN 종단을 담당하고, Ingress는 Application Service 라우팅을 담당한다.
 
 Management Network, VLAN Service Network, Proxmox 10G Cluster / Ceph Network를 분리하여 관리 트래픽, 서비스 트래픽, 스토리지 트래픽이 서로 영향을 주지 않도록 설계한다.
 
