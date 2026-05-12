@@ -224,29 +224,42 @@ Application Pod
 
 pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책을 허용 정책보다 위에 배치한다.
 
+### VLAN10 Public(사용안함)
+
+| 순서 | 정책 | Action |
+| --- | --- | --- |
+| 1 | Public -> Internet | 허용 |
+
 ### VLAN20 DMZ
 
 | 순서 | 정책 | Action |
 | --- | --- | --- |
-| 1 | DMZ -> Private | 차단 |
-| 2 | DMZ -> Dev | 차단 |
-| 3 | DMZ -> Internet | 허용 |
+| 1 | AWS/HAProxy -> Ingress(Private) : 80/443 | 허용 |
+| 2 | DMZ -> Private | 차단 |
+| 3 | DMZ -> Dev | 차단 |
+| 4 | DMZ -> Internet | 허용 |
 
 ### VLAN30 Development
 
 | 순서 | 정책 | Action |
 | --- | --- | --- |
-| 1 | Dev -> Private | 차단 |
-| 2 | Dev -> DMZ | 차단 |
-| 3 | Dev -> Internet | 허용 |
+| 1 | Dev -> Ingress(Private) : 80/443 | 허용 |
+| 2 | Dev -> K8s API(Private) : 6443 | 허용 |
+| 3 | Dev -> pfSense(172.17.64.1) : 443/80/22 | 허용 |
+| 4 | Dev -> Private : 22 | 허용 |
+| 5 | Dev -> Private | 차단 |
+| 6 | Dev -> DMZ | 차단 |
+| 7 | Dev -> Internet | 허용 |
 
 ### VLAN40 Private
 
 | 순서 | 정책 | Action |
 | --- | --- | --- |
-| 1 | Private -> Dev | 차단 |
+| 1 | Private -> Public | 차단 |
 | 2 | Private -> DMZ | 차단 |
-| 3 | Private -> Internet | 허용 |
+| 3 | Private -> Dev | 차단 |
+| 4 | Private -> DNS(53) | 허용 |
+| 5 | Private -> Internet : 80/443 | 허용 |
 
 ## VPN 구성
 
