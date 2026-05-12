@@ -87,10 +87,10 @@ pfSense는 물리 장비가 아니라 Proxmox Node 위에서 동작하는 VM이�
 | --- | --- | --- |
 | WAN | 192.168.36.150 | Management Network 연결 |
 | LAN | 172.16.1.1 | 내부 LAN Gateway |
-| OPT1 | VLAN10 Public Gateway | VLAN10 Gateway |
-| OPT2 | VLAN20 DMZ Gateway | VLAN20 Gateway |
-| OPT3 | VLAN30 Development Gateway | VLAN30 Gateway |
-| OPT4 | VLAN40 Private Gateway | VLAN40 Gateway |
+| OPT1 | 172.17.0.1 | VLAN10 Public Gateway |
+| OPT2 | 172.17.32.1 | VLAN20 DMZ Gateway |
+| OPT3 | 172.17.64.1 | VLAN30 Development Gateway |
+| OPT4 | 172.17.128.1 | VLAN40 Private Gateway |
 
 pfSense VM은 VLAN 간 라우팅, 방화벽 정책, AWS Site-to-Site VPN 종단을 담당한다.
 
@@ -111,7 +111,8 @@ Kubernetes Ingress Controller는 VLAN40 Private Network에서 내부 서비스 �
 | --- | --- |
 | Network | 10.10.10.0/24 |
 | Proxmox 10G Node IP | 10.10.10.31 ~ 10.10.10.34 |
-| Kubernetes VM 10G IP | 10.10.10.50 ~ 10.10.10.99 |
+| Kubernetes VM 10G 할당 가능 대역 | 10.10.10.50 ~ 10.10.10.99 |
+| Kubernetes VM 10G 현재 사용 IP | 10.10.10.50 ~ 10.10.10.58 |
 | Ceph RBD Node | 10.10.10.11 |
 | Ceph S3 Endpoint | TBD |
 | 용도 | Proxmox Cluster 통신, Ceph RBD/S3 접근, Storage Traffic |
@@ -167,6 +168,12 @@ Kubernetes Ingress Controller
 
 pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책을 허용 정책보다 위에 배치한다.
 
+### VPN / AWS 유입
+
+| 순서 | 정책 | Action |
+| --- | --- | --- |
+| 1 | EC2 HAProxy -> Ingress VIP(172.17.131.200) : 80/443 | 허용 |
+
 ### VLAN10 Public(사용안함)
 
 | 순서 | 정책 | Action |
@@ -177,10 +184,9 @@ pfSense VM은 Top-Down 방식으로 룰을 평가한다. 따라서 차단 정책
 
 | 순서 | 정책 | Action |
 | --- | --- | --- |
-| 1 | AWS/HAProxy -> Ingress(Private) : 80/443 | 허용 |
-| 2 | DMZ -> Private | 차단 |
-| 3 | DMZ -> Dev | 차단 |
-| 4 | DMZ -> Internet | 허용 |
+| 1 | DMZ -> Private | 차단 |
+| 2 | DMZ -> Dev | 차단 |
+| 3 | DMZ -> Internet | 허용 |
 
 ### VLAN30 Development
 

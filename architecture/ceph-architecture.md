@@ -48,7 +48,8 @@ Ceph는 On-Premise Kubernetes에서 상태 저장 워크로드와 서비스 이�
 | Proxmox Node | team11, team12, team13, team14 |
 | Proxmox Management IP | 192.168.36.151 ~ 192.168.36.154 |
 | Proxmox 10G Node IP | 10.10.10.31 ~ 10.10.10.34 |
-| Kubernetes Node 10G IP | 10.10.10.50 ~ 10.10.10.58 |
+| Kubernetes Node 10G 할당 가능 대역 | 10.10.10.50 ~ 10.10.10.99 |
+| Kubernetes Node 10G 현재 사용 IP | 10.10.10.50 ~ 10.10.10.58 |
 | Ceph RBD Node | 10.10.10.11 |
 | Ceph S3 Endpoint | TBD |
 
@@ -144,7 +145,7 @@ Ceph Node (10.10.10.11)
 | 172.17.x.x | VLAN 기반 Service Network |
 | 10.10.10.0/24 | Kubernetes Node 10G 내부 통신, Ceph RBD 접근, Ceph S3 접근 |
 
-Ceph Storage Traffic은 Management Network와 분리한다. Kubernetes 외부 서비스 트래픽은 AWS ALB, EC2 HAProxy, Site-to-Site VPN, pfSense VM, Kubernetes Ingress Controller 경로를 따르며 Ceph RBD/S3 접근 경로와 분리한다.
+Ceph Storage Traffic은 Management Network와 분리한다. Kubernetes 외부 서비스 트래픽은 AWS NLB, EC2 HAProxy, Site-to-Site VPN, pfSense VM, Kubernetes Ingress Controller 경로를 따르며 Ceph RBD/S3 접근 경로와 분리한다.
 
 ## 데이터베이스 저장소 관점
 
