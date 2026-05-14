@@ -56,6 +56,8 @@ docs/
 * `overview.md` : 전체 아키텍처 개요
 * `network-design.md` : VLAN, DMZ, 네트워크 구조
 * `hybrid-architecture.md` : 온프레미스 + AWS 연동 구조
+* `ceph-architecture.md` : Ceph RBD/S3 스토리지 구조 및 용량
+* `kubernetes-node-spec.md` : Kubernetes VM 노드 스펙
 * `aws-integration.md` : VPN, VPC, EKS 구성
 
 ---
