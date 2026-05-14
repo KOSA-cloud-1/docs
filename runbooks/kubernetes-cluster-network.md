@@ -1,5 +1,6 @@
 # Kubernetes VIP 
 172.17.130.10   API Server VIP (kube-vip)
+
 # Kubernetes VM IP 할당표
 | Hostname | VM ID | Proxmox Node | 1G IP           | 10G IP        | 역할           |
 | -------- | ----: | ------------ | --------------- | ------------- | ------------- |
@@ -12,3 +13,9 @@
 | worker4  |  1014 | team11       | `172.17.128.27` | `10.10.10.57` | Worker        |
 | worker5  |  1015 | team11       | `172.17.128.28` | `10.10.10.58` | Worker        |
 | worker6  |  1016 | team11       | `172.17.128.29` | `10.10.10.59` | Worker        |
+
+# Kubernetes Pod ip 대역
+172.20.0.0/16
+
+# Kubernetes Service ip 대역
+10.96.0.0/12 (Calico default)
