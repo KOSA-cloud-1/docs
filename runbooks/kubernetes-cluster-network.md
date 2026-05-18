@@ -15,7 +15,10 @@
 | worker6  |  1016 | team11       | `172.17.128.29` | `10.10.10.59` | Worker        |
 
 # Kubernetes Pod ip 대역
-172.20.0.0/16
+10.244.0.0/16
 
 # Kubernetes Service ip 대역
 10.96.0.0/12 (Calico default)
+
+# metalLB
+172.17.128.240~172.17.128.250
