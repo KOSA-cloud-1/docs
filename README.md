@@ -17,11 +17,11 @@
   * Ceph Storage
   * pfSense 기반 네트워크
 
-* **Cloud (AWS)**
+* **Cloud (AWS) — Edge 역할 (EKS 미사용, Kubernetes는 온프렘 kubeadm)**
 
-  * VPC
-  * EKS
-  * Site-to-Site VPN
+  * VPC / Public·Private Subnet
+  * Route53 + NLB(TLS 종료) + HAProxy EC2 (공개 진입)
+  * Site-to-Site VPN (StrongSwan ↔ ER605)
 
 * **배포 방식**
 
@@ -74,12 +74,15 @@ docs/
 
 인프라 구축 절차를 단계별로 정리합니다.
 
-* `proxmox-cluster.md`
-* `pfsense-network.md`
-* `kubernetes-cluster.md`
-* `argocd-deployment.md`
-* `mariadb-galera.md`
-* `monitoring.md`
+현재 작성된 문서:
+
+* `kubernetes-cluster-network.md`
+* `node-hardware-spec.md`
+* `storage-disk.md`
+* `test.md`
+
+> 추가 예정(제안): `proxmox-cluster`, `pfsense-network`, `argocd-deployment`, `mariadb-galera`, `monitoring` 등.
+> 기존 runbook 파일은 보존하며, 보완 사항은 별도로 제안한다.
 
 ---
 
@@ -102,6 +105,7 @@ docs/
 * `ADR-002-network-separation.md`
 * `ADR-003-gitops-with-argocd.md`
 * `ADR-004-mariadb-galera-on-ceph.md`
+* `ADR-005-dev-prod-overlay-separation.md`
 
 ---
 
