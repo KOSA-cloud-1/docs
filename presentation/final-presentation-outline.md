@@ -17,7 +17,7 @@
 | 11 | Kubernetes 선택 이유 | 선언적 운영·자가복구·수평확장·GitOps 적합 | ADR-003 |
 | 12 | Ceph 선택 이유 | 통합 스토리지(블록 RBD + 오브젝트 RGW), 온프렘 자체 운영 | ADR-004 |
 | 13 | Ceph 구성 및 AWS 대응 비교 | RBD↔EBS, RGW S3↔S3. 온프렘 자체 vs 관리형 트레이드오프 | 비용 분석(#19)와 연계 |
-| 14 | Galera DB 선택 이유 | 3-replica multi-master HA, RBD PVC | ADR-004 |
+| 14 | Galera DB 선택 이유 | 3-replica multi-primary HA, RBD PVC | ADR-004 |
 | 15 | CI/CD & GitOps | GitHub Actions(빌드)→k8s-manifests(overlay)→ArgoCD. dev/prod 분리 | `../operations/deployment-flow.md`, ADR-003/005 |
 | 16 | Monitoring 구성 | Prometheus/Grafana/Loki/Alertmanager + HPA 메트릭 | `k8s-manifests/infra/monitoring/README.md` |
 | 17 | 고가용성 설계 | 계층별 HA 표(active/active vs active/backup) | `../operations/failure-scenarios.md` §1 |

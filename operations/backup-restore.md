@@ -23,7 +23,7 @@ kubectl -n backup logs job/<photo-backup-...>
 
 ## 3. DB (Galera)
 
-- Galera는 `data` ns에서 **3-replica multi-master**로 동작 → 노드 1대 장애에도 가용.
+- Galera는 `data` ns에서 **3-replica multi-primary**로 동작 → 노드 1대 장애에도 가용.
 - 각 Pod는 독립 RWO RBD 볼륨(`ceph-rbd`, reclaimPolicy `Retain`).
 - 앱 접속점: `mysql.data.svc.cluster.local`.
 - 논리 백업(mysqldump 등)을 별도 주기로 권장(스키마/데이터 시점 복구용). 현 구성은 Galera 복제 + RBD `Retain`이 1차 보호.

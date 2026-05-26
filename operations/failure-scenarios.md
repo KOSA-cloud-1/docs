@@ -8,10 +8,10 @@
 |---|---|---|
 | AWS HAProxy | active/active (NLB) | NLB가 health check로 제외, 나머지 1대가 처리 |
 | AWS VPN(StrongSwan) | active/backup | Lambda(1분)가 EIP·route를 정상 인스턴스로 이전 |
-| 온프렘 HAProxy | active/backup (VRRP) | MASTER 다운 → BACKUP이 VIP 인수(우선순위 110/100) |
+| 온프렘 HAProxy | active/backup (VRRP) | PRIMARY 다운 → BACKUP이 VIP 인수(우선순위 110/100) |
 | ingress-nginx | active/active (2 replica) | 다른 replica가 처리. `externalTrafficPolicy: Cluster`로 노드 단위 장애에도 포워딩 |
 | K8s control-plane | kube-vip + CP×3 | API VIP가 정상 CP로 페일오버 |
-| MariaDB Galera | 3-replica multi-master | 나머지 노드로 쓰기/읽기 지속 |
+| MariaDB Galera | 3-replica multi-primary | 나머지 노드로 쓰기/읽기 지속 |
 | 앱(gateway/photo 등) | HPA + PDB + topologySpread | replica 분산, drain 시 최소 가용 보장 |
 
 ## 2. 알려진 장애 이력 / 교훈
