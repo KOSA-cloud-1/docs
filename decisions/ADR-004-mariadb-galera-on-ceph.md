@@ -9,14 +9,14 @@
 
 ## Decision
 
-- **MariaDB Galera 3-replica multi-master** StatefulSet(`data` ns).
+- **MariaDB Galera 3-replica multi-primary** StatefulSet(`data` ns).
 - 각 Pod는 **독립 RWO Ceph RBD PVC**(`ceph-rbd` StorageClass, reclaimPolicy `Retain`).
 - 앱 접속점: `mysql.data.svc.cluster.local`.
 - Galera 노드는 전용 노드(label `db-role=galera`, worker3~5)에 배치.
 
 ## Consequences
 
-- (+) 노드 1대 장애에도 쓰기/읽기 지속(동기 복제 multi-master).
+- (+) 노드 1대 장애에도 쓰기/읽기 지속(동기 복제 multi-primary).
 - (+) RBD로 스토리지가 노드와 분리 → 재스케줄 시 볼륨 재연결.
 - (+) `Retain`으로 PVC 삭제 시 데이터 즉시 소실 방지.
 - (−) Galera 동기 복제 특성상 쓰기 지연·인증서(certification) 충돌 가능 → 핫스팟 쓰기 주의.

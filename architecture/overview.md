@@ -39,7 +39,7 @@
 | **K8s 네트워킹** | Calico CNI, kube-vip(API VIP), MetalLB(L2, pool `172.17.128.240-250`), ingress-nginx |
 | **스토리지** | Ceph — RBD(`ceph-csi-rbd`, Galera PVC) + RGW S3(`photo-service`/backup 이미지 객체) |
 | **애플리케이션** | gateway(5000)·auth-server(5001)·employee-server(5002)·photo-service(5003)·frontend/nginx(80) |
-| **데이터베이스** | MariaDB Galera 3-replica (multi-master, `data` ns) |
+| **데이터베이스** | MariaDB Galera 3-replica (multi-primary, `data` ns) |
 | **AWS Edge** | Route53(`fhwang.cloud`) + NLB + HAProxy EC2 ×2 + StrongSwan VPN EC2 ×2 + ACM |
 | **CI/CD** | GitHub Actions(이미지 빌드/push) → k8s-manifests(Kustomize) → ArgoCD(GitOps) |
 | **관측성** | kube-prometheus-stack(Prometheus/Grafana/Alertmanager) + Loki/promtail + metrics-server |
@@ -64,7 +64,7 @@
 | 온프렘 HAProxy | active/backup (keepalived VRRP 단일 VIP) |
 | ingress-nginx | active/active (2 replica + topologySpread + PDB) |
 | K8s control-plane | kube-vip API VIP + control-plane ×3 |
-| MariaDB | Galera 3-replica multi-master |
+| MariaDB | Galera 3-replica multi-primary |
 
 자세한 흐름·근거는 [hybrid-architecture.md](hybrid-architecture.md), [aws-integration.md](aws-integration.md),
 [network-design.md](network-design.md), `../operations/`, `../decisions/` 참고.
