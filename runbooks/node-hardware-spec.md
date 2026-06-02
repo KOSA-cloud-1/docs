@@ -12,7 +12,7 @@
 | team11 | worker4, worker5, worker6 |
 | team12 | cp1, worker1              |
 | team13 | cp2, worker2              |
-| team14 | cp3, worker3              |
+| team14 | cp3, worker3, worker7     |
 
 # Control Plane Nodes
 | Node | VM ID | Proxmox Node | 1G IP         | 10G IP      | vCPU |    Max Memory | Balloon Memory |
@@ -23,11 +23,12 @@
 
 
 # Worker Nodes
-| Node    | VM ID | Proxmox Node | 1G IP         | 10G IP      | vCPU |      Max Memory | Balloon Memory |
-| ------- | ----: | ------------ | ------------- | ----------- | ---: | --------------: | -------------: |
-| worker1 |  1011 | team12       | 172.17.128.24 | 10.10.10.54 |    8 | 32768 MB (32GB) |  8192 MB (8GB) |
-| worker2 |  1012 | team13       | 172.17.128.25 | 10.10.10.55 |    8 | 32768 MB (32GB) |  8192 MB (8GB) |
-| worker3 |  1013 | team14       | 172.17.128.26 | 10.10.10.56 |    4 |   4096 MB (4GB) |  2048 MB (2GB) |
-| worker4 |  1014 | team11       | 172.17.128.27 | 10.10.10.57 |    4 |   4096 MB (4GB) |  2048 MB (2GB) |
-| worker5 |  1015 | team11       | 172.17.128.28 | 10.10.10.58 |    4 |   4096 MB (4GB) |  2048 MB (2GB) |
-| worker6 |  1016 | team11       | 172.17.128.29 | 10.10.10.59 |    4 |   4096 MB (4GB) |  2048 MB (2GB) |
+| Node    | VM ID | Proxmox Node | 1G IP         | 10G IP      | vCPU |      Max Memory | 
+| ------- | ----: | ------------ | ------------- | ----------- | ---: | --------------: | 
+| worker1 |  1011 | team12       | 172.17.128.24 | 10.10.10.54 |    8 | 16384 MB (16GB) |  
+| worker2 |  1012 | team13       | 172.17.128.25 | 10.10.10.55 |    8 | 16384 MB (16GB) |  
+| worker3 |  1013 | team14       | 172.17.128.26 | 10.10.10.56 |    4 |   4096 MB (4GB) |  
+| worker4 |  1014 | team11       | 172.17.128.27 | 10.10.10.57 |    4 |   4096 MB (4GB) |  
+| worker5 |  1015 | team11       | 172.17.128.28 | 10.10.10.58 |    4 |   4096 MB (4GB) |  
+| worker6 |  1016 | team11       | 172.17.128.29 | 10.10.10.59 |    4 |   4096 MB (4GB) |  
+| worker7 |  1017 | team14       | 172.17.128.39 | 10.10.10.60 |    4 |   4096 MB (4GB) | 
